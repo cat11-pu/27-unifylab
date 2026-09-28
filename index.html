@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>unifylab 合一推演台</title>
+<style>
+:root{--ink:#1c1a17;--paper:#fbf8f2;--rule:#d8d1c4;--ok:#1f6b4a;--bad:#a8321f;--var:#8a6d1f;--tag:#6b6250}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:system-ui,"Segoe UI",sans-serif;font-size:14px}
+.pad{max-width:900px;margin:0 auto;padding:18px 18px 44px}
+.head h1{margin:0;font-size:20px;letter-spacing:2px}
+.lede{margin:6px 0 0;color:var(--tag);font-size:12px;line-height:1.7}
+.scrub{margin-top:16px;border-top:2px solid var(--ink);border-bottom:1px solid var(--rule);padding:8px 0}
+.scrub-top{display:flex;align-items:baseline;gap:12px;font-size:12px;color:var(--tag)}
+.scrub-now{color:var(--ink);font-weight:700}
+.ticks{display:flex;gap:3px;align-items:stretch;height:38px;margin:6px 0 2px}
+.tk{flex:1 1 0;background:#e6dfd2;border:0;border-bottom:3px solid var(--rule);cursor:pointer;padding:0;position:relative}
+.tk.miss{background:#f7e6e1;border-bottom-color:var(--bad)}
+.tk.now{background:#cdd8ea;border-bottom-color:#3c5b8c}
+.tk span{position:absolute;left:0;right:0;bottom:3px;font-size:10px;color:var(--tag)}
+#stepRange{width:100%;margin:0}
+.compose{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px;font-size:12px;color:var(--tag)}
+.compose input{width:112px;padding:3px 6px;border:1px solid var(--rule);background:#fff;font-family:ui-monospace,Consolas,monospace}
+.compose button{padding:3px 10px;border:1px solid var(--ink);background:#fff;cursor:pointer}
+.block{margin-top:20px}
+.block-head{display:flex;align-items:center;gap:10px;border-left:4px solid var(--ink);padding-left:8px}
+.block-title{font-size:14px;font-weight:700;letter-spacing:1px}
+.seal{font-size:11px;padding:1px 6px;border:1px solid var(--rule);color:var(--tag)}
+.seal.ok{color:var(--ok);border-color:var(--ok)}
+.seal.no{color:#fff;background:var(--bad);border-color:var(--bad)}
+.rows{margin-top:8px;display:flex;flex-direction:column;gap:5px}
+.row{display:flex;align-items:center;gap:10px;border-bottom:1px dotted var(--rule);padding:3px 0}
+.row .k{flex:0 0 76px;color:var(--tag);font-size:12px}
+.row .v{flex:1 1 auto;min-width:0}
+.tm{font-family:ui-monospace,Consolas,monospace;font-size:13px;white-space:nowrap}
+.tm.var{color:var(--var);border-bottom:1px dashed var(--var)}
+.tm.int{color:var(--ok)}
+.tm.bad{color:var(--bad)}
+.tm .arrow{margin:0 3px;color:var(--tag)}
+.tm .link{color:var(--ok)}
+ol.flow{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:4px}
+ol.flow li{display:flex;align-items:center;gap:10px;padding:4px 6px;border-left:3px solid var(--rule);background:#fff}
+ol.flow li.ok{border-left-color:var(--ok)}
+ol.flow li.no{border-left-color:var(--bad);background:#fdf3f0}
+ol.flow li.now{outline:1px solid var(--ink)}
+ol.flow .idx{flex:0 0 30px;color:var(--tag);font-size:11px}
+ol.flow .mark{flex:0 0 104px;font-size:11px;color:var(--tag)}
+ol.flow .mark.bad{color:var(--bad);font-weight:700}
+.ledger{margin-top:8px;border-top:1px solid var(--rule);padding-top:6px;font-family:ui-monospace,Consolas,monospace;font-size:12px;line-height:1.9}
+.empty{color:var(--tag);font-size:12px}
+</style></head>
+<body>
+<div class="pad">
+  <header class="head">
+    <h1>合一推演台</h1>
+    <p class="lede" id="lede">正在读 sample/unify.json；拖推进尺看每一步：替换表怎么长、新绑定怎么回头作用到旧绑定上、哪一步被拦下。</p>
+  </header>
+
+  <section class="scrub">
+    <div class="scrub-top">
+      <span>推进尺</span><span class="scrub-now" id="stepNow">第 0 步</span><span id="stepWord"></span>
+    </div>
+    <div class="ticks" id="ticks"></div>
+    <input id="stepRange" type="range" min="0" max="0" value="0">
+    <div class="compose">
+      <label>左 <input id="leftIn" value="var 3"></label>
+      <label>右 <input id="rightIn" value="int"></label>
+      <button id="doMerge">合一</button>
+      <button id="doShow">记这条项</button>
+      <button id="doReset">重置表</button>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="block-head"><span class="block-title">替换表（当前步）</span><span class="seal" id="sealSubst"></span></div>
+    <div class="rows" id="substRows"></div>
+  </section>
+
+  <section class="block">
+    <div class="block-head"><span class="block-title">项路</span><span class="seal" id="sealShows"></span></div>
+    <div class="rows" id="showRows"></div>
+  </section>
+
+  <section class="block">
+    <div class="block-head"><span class="block-title">合一流水</span><span class="seal" id="sealRounds"></span></div>
+    <ol class="flow" id="flowList"></ol>
+  </section>
+
+  <section class="block">
+    <div class="block-head"><span class="block-title">账</span><span class="seal" id="sealCodes"></span></div>
+    <div class="ledger" id="ledger"></div>
+  </section>
+</div>
+<script type="module">
+import { render } from "./app.js";
+import { normOf } from "./unify.js";
+import { substOk, roundsOk, showsOk, codesOk } from "./audit.js";
+
+const EMPTY = {
+  subst: [], shows: [], rounds: [], codes: [],
+  unifies: 0, oks: 0, bad: 0, growth: 0, resets: 0, looks: 0
+};
+const BAD = "打不开 sample/unify.json：请照 README 起一个静态服务再打开本页。";
+
+let spec = null;
+let view = null;
+let at = 0;
+
+function el(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) {
+    node.className = className;
+  }
+  if (text !== undefined) {
+    node.textContent = text;
+  }
+  return node;
+}
+
+function parseTerm(text) {
+  const tokens = String(text).replace(/[()]/g, " ").split(/\s+/).filter(function (piece) {
+    return piece.length > 0;
+  });
+  let cursor = 0;
+  function pull() {
+    const token = tokens[cursor];
+    cursor += 1;
+    if (token === "int") {
+      return ["int"];
+    }
+    if (token === "var") {
+      const id = Number(tokens[cursor]);
+      cursor += 1;
+      return ["var", id];
+    }
+    if (token === "fun") {
+      const left = pull();
+      const right = pull();
+      return ["fun", left, right];
+    }
+    return null;
+  }
+  const out = pull();
+  if (out === null || cursor !== tokens.length) {
+    return null;
+  }
+  return out;
+}
+
+function termNode(term, subst) {
+  if (!Array.isArray(term) || term.length === 0) {
+    return el("span", "tm bad", "?");
+  }
+  if (term[0] === "var") {
+    const box = el("span", "tm var", "v" + term[1]);
+    let settled = null;
+    try {
+      settled = normOf(term, subst);
+    } catch (error) {
+      settled = null;
+    }
+    if (settled !== null && settled[0] !== "var") {
+      const link = el("span", "link");
+      link.appendChild(document.createTextNode(" \u2192 "));
+      link.appendChild(termNode(settled, subst));
+      box.appendChild(link);
+    }
+    return box;
+  }
+  if (term[0] === "int") {
+    return el("span", "tm int", "int");
+  }
+  if (term[0] === "fun") {
+    const box = el("span", "tm fun");
+    box.appendChild(document.createTextNode("("));
+    box.appendChild(termNode(term[1], subst));
+    box.appendChild(el("span", "arrow", " \u2192 "));
+    box.appendChild(termNode(term[2], subst));
+    box.appendChild(document.createTextNode(")"));
+    return box;
+  }
+  return el("span", "tm bad", "坏项");
+}
+
+function stateAt() {
+  if (spec === null || view === null) {
+    return EMPTY;
+  }
+  return at === 0 ? spec.state : view.steps[at - 1];
+}
+
+function seal(id, ok, text) {
+  const node = document.getElementById(id);
+  node.textContent = text;
+  node.className = "seal " + (ok ? "ok" : "no");
+}
+
+function drawTicks() {
+  const box = document.getElementById("ticks");
+  box.textContent = "";
+  view.step_kind.forEach(function (kind, spot) {
+    const tick = el("button", "tk" + (view.step_ok[spot] ? "" : " miss") + (spot + 1 === at ? " now" : ""));
+    tick.appendChild(el("span", "", String(spot + 1)));
+    tick.addEventListener("click", function () {
+      at = spot + 1;
+      draw();
+    });
+    box.appendChild(tick);
+  });
+}
+
+function drawSubst(state) {
+  const box = document.getElementById("substRows");
+  box.textContent = "";
+  if (state.subst.length === 0) {
+    box.appendChild(el("div", "empty", "表是空的：还没有活着的绑定。"));
+  }
+  state.subst.forEach(function (pair) {
+    const row = el("div", "row");
+    row.appendChild(el("span", "k", "v" + pair[0] + " 绑到"));
+    const value = el("span", "v");
+    value.appendChild(termNode(pair[1], state.subst));
+    row.appendChild(value);
+    box.appendChild(row);
+  });
+  seal("sealSubst", substOk(state), substOk(state) ? "表自洽" : "表不自洽");
+}
+
+function drawShows(state) {
+  const box = document.getElementById("showRows");
+  box.textContent = "";
+  if (state.shows.length === 0) {
+    box.appendChild(el("div", "empty", "还没有记过项。"));
+  }
+  state.shows.forEach(function (pair, spot) {
+    const row = el("div", "row");
+    row.appendChild(el("span", "k", "第 " + (spot + 1) + " 记"));
+    const value = el("span", "v");
+    value.appendChild(termNode(pair[0], []));
+    value.appendChild(el("span", "arrow", " \u21d2 "));
+    value.appendChild(termNode(pair[1], []));
+    row.appendChild(value);
+    box.appendChild(row);
+  });
+  seal("sealShows", showsOk(state), showsOk(state) ? "项自洽" : "项不自洽");
+}
+
+function drawFlow(state, born) {
+  const box = document.getElementById("flowList");
+  box.textContent = "";
+  if (state.rounds.length === 0) {
+    box.appendChild(el("li", "empty", "还没有合一过。"));
+  }
+  state.rounds.forEach(function (row, spot) {
+    const item = el("li", row[2] ? "ok" : "no");
+    if (born[spot] === at) {
+      item.className += " now";
+    }
+    item.appendChild(el("span", "idx", String(spot + 1)));
+    const pair = el("span", "v");
+    pair.appendChild(termNode(row[0], state.subst));
+    pair.appendChild(el("span", "arrow", " \u2016 "));
+    pair.appendChild(termNode(row[1], state.subst));
+    item.appendChild(pair);
+    const mark = el("span", "mark" + (row[2] ? "" : " bad"), row[2] ? "成了" : "拦下 " + row[3]);
+    item.appendChild(mark);
+    box.appendChild(item);
+  });
+  seal("sealRounds", roundsOk(state), roundsOk(state) ? "流水自洽" : "流水不自洽");
+}
+
+function drawLedger(state) {
+  const box = document.getElementById("ledger");
+  box.textContent = "";
+  const lines = [
+    "合一 " + state.unifies + " 次，成 " + state.oks + " 次，拦下 " + state.bad + " 次",
+    "累计绑定 " + state.growth + " 笔，表长 " + state.subst.length + " 条",
+    "记项 " + state.looks + " 次，重置 " + state.resets + " 次",
+    "失败码账 " + (state.codes.length === 0 ? "空" : state.codes.join(" "))
+  ];
+  lines.forEach(function (text, spot) {
+    if (spot > 0) {
+      box.appendChild(document.createElement("br"));
+    }
+    box.appendChild(document.createTextNode(text));
+  });
+  seal("sealCodes", codesOk(state), codesOk(state) ? "码账自洽" : "码账不自洽");
+}
+
+function draw() {
+  const state = stateAt();
+  document.getElementById("stepNow").textContent = "第 " + at + " 步";
+  document.getElementById("stepRange").value = String(at);
+  if (at === 0) {
+    document.getElementById("stepWord").textContent = "（起点）";
+  } else if (!view.step_ok[at - 1]) {
+    document.getElementById("stepWord").textContent = "（这一步没落地：" + view.step_kind[at - 1] + "）";
+  } else {
+    document.getElementById("stepWord").textContent = "（" + view.step_kind[at - 1] + "）";
+  }
+  drawTicks();
+  drawSubst(state);
+  drawShows(state);
+  drawFlow(state, view.round_steps || []);
+  drawLedger(state);
+}
+
+document.getElementById("stepRange").addEventListener("input", function (event) {
+  at = Number(event.target.value);
+  draw();
+});
+
+function push(event) {
+  spec.events.push(event);
+  view = render(spec);
+  at = spec.events.length;
+  document.getElementById("stepRange").max = String(spec.events.length);
+  document.getElementById("ticks").textContent = "";
+  draw();
+}
+
+document.getElementById("doMerge").addEventListener("click", function () {
+  const left = parseTerm(document.getElementById("leftIn").value);
+  const right = parseTerm(document.getElementById("rightIn").value);
+  if (left === null || right === null) {
+    document.getElementById("stepWord").textContent = "（写法不认：用 int 或 var 编号 或 fun 左 右）";
+    return;
+  }
+  push({ kind: "merge", left: left, right: right });
+});
+
+document.getElementById("doShow").addEventListener("click", function () {
+  const term = parseTerm(document.getElementById("leftIn").value);
+  if (term === null) {
+    document.getElementById("stepWord").textContent = "（写法不认：用 int 或 var 编号 或 fun 左 右）";
+    return;
+  }
+  push({ kind: "show", term: term });
+});
+
+document.getElementById("doReset").addEventListener("click", function () {
+  push({ kind: "reset" });
+});
+
+fetch("sample/unify.json").then(function (reply) {
+  return reply.json();
+}).then(function (data) {
+  spec = data;
+  view = render(spec);
+  at = spec.events.length;
+  document.getElementById("stepRange").max = String(spec.events.length);
+  document.getElementById("lede").textContent =
+    "场景 " + spec.events.length + " 条事件；推进尺停在最后一步，点刻度能退回任意一步看当时的替换表。";
+  draw();
+}).catch(function () {
+  document.getElementById("lede").textContent = BAD;
+});
+</script>
+</body>
+</html>

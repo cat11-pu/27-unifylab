@@ -1,0 +1,26 @@
+{
+  "state": {
+    "subst": [],
+    "shows": [],
+    "rounds": [],
+    "codes": [],
+    "unifies": 0,
+    "oks": 0,
+    "bad": 0,
+    "growth": 0,
+    "resets": 0,
+    "looks": 0
+  },
+  "events": [
+    { "kind": "merge", "left": ["var", 0], "right": ["int"] },
+    { "kind": "merge", "left": ["fun", ["var", 1], ["var", 2]], "right": ["fun", ["var", 0], ["int"]] },
+    { "kind": "show", "term": ["fun", ["var", 1], ["var", 3]] },
+    { "kind": "merge", "left": ["var", 3], "right": ["var", 1] },
+    { "kind": "merge", "left": ["var", 4], "right": ["fun", ["var", 4], ["int"]] },
+    { "kind": "merge", "left": ["int"], "right": ["fun", ["int"], ["int"]] },
+    { "kind": "show", "term": ["var", 3] },
+    { "kind": "reset" },
+    { "kind": "merge", "left": ["var", 2], "right": ["var", 2] },
+    { "kind": "poke" }
+  ]
+}
